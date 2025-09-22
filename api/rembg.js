@@ -3,41 +3,41 @@ import * as cheerio from "cheerio";
 
 export default async function handler(req, res) {
   const { url } = req.query;
-
   if (!url) {
-    return res.status(400).json({ error: "Missing ?url parameter" });
+    return res.status(400).json({ error: "Missing ?url param" });
   }
 
   try {
-    // Step 1: Ask Hugging Face Space to process image
-    // Just open the UI page with the image param
-    const hfUrl = `https://jerrycoder-rembg-as.hf.space/?image=${encodeURIComponent(url)}`;
-    const resp = await fetch(hfUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
+    // Step 1: Send request to Hugging Face Space (simulate user submission)
+    await fetch("https://jerrycoder-rembg-as.hf.space", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ data: url }).toString(),
+    });
 
-    if (!resp.ok) {
-      throw new Error(`HF request failed with ${resp.status}`);
+    // Step 2: Poll until we find tmpfiles.org link in HTML
+    let outputUrl = null;
+    for (let i = 0; i < 6; i++) { // up to ~18s total
+      const resp = await fetch("https://jerrycoder-rembg-as.hf.space");
+      const html = await resp.text();
+      const $ = cheerio.load(html);
+
+      // Look for tmpfiles.org link
+      const link = $("a[href*='tmpfiles.org']").attr("href");
+      if (link) {
+        outputUrl = link;
+        break;
+      }
+      await new Promise(r => setTimeout(r, 3000)); // wait 3s before retry
     }
 
-    const html = await resp.text();
-
-    // Step 2: Parse HTML with cheerio
-    const $ = cheerio.load(html);
-
-    // Look for tmpfiles.org link
-    const tmpUrl = $("a[href*='tmpfiles.org']").attr("href");
-
-    if (!tmpUrl) {
+    if (!outputUrl) {
       return res.status(500).json({ error: "Failed to extract image URL" });
     }
 
-    // Step 3: Return JSON response
-    return res.status(200).json({
-      success: true,
-      url: tmpUrl,
-    });
-
+    res.status(200).json({ success: true, url: outputUrl });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: err.message });
+    console.error("Error:", err);
+    res.status(500).json({ error: err.message });
   }
 }
