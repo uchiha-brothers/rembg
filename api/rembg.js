@@ -13,16 +13,18 @@ export default async function handler(req, res) {
     const buffer = Buffer.from(await imgResponse.arrayBuffer());
 
     // 2. Send to Hugging Face Space (Gradio API)
-    const hfResponse = await fetch(
-      "https://jerrycoder-rembg-as.hf.space/run/predict",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data: [buffer.toString("base64")] // send as base64
-        })
-      }
-    );
+    const base64Input = `data:image/png;base64,${buffer.toString("base64")}`;
+
+const hfResponse = await fetch(
+  "https://jerrycoder-rembg-as.hf.space/run/predict",
+  {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      data: [base64Input]   // wrap as full data URI
+    })
+  }
+);
 
     const result = await hfResponse.json();
 
