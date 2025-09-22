@@ -16,14 +16,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Step 1: Simulate form submission to Hugging Face Space
+    // Step 1: Trigger the Hugging Face Space
     await fetch("https://jerrycoder-rembg-as.hf.space", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ data: url }).toString(),
     });
 
-    // Step 2: Poll until tmpfiles.org link appears
+    // Step 2: Poll until we find the tmpfiles.org link
     let outputUrl = null;
     for (let i = 0; i < 6; i++) {
       const resp = await fetch("https://jerrycoder-rembg-as.hf.space");
@@ -35,14 +35,24 @@ export default async function handler(req, res) {
         outputUrl = link;
         break;
       }
-      await new Promise((r) => setTimeout(r, 3000)); // wait 3s
+      await new Promise((r) => setTimeout(r, 3000));
     }
 
-    if (!outputUrl) {
-      return res.status(500).json({ error: "Failed to vom image URL" });
+    // ✅ If we got a tmpfiles link → return JSON
+    if (outputUrl) {
+      return res.status(200).json({ success: true, url: outputUrl });
     }
 
-    res.status(200).json({ success: true, url: outputUrl });
+    // ❌ If no link → fallback: fetch image as base64
+    const fallbackResp = await fetch(url);
+    const buffer = await fallbackResp.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString("base64");
+
+    return res.status(200).json({
+      success: true,
+      base64: `data:image/png;base64,${base64}`,
+    });
+
   } catch (err) {
     console.error("Error:", err);
     res.status(500).json({ error: err.message });
