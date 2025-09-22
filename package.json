@@ -1,0 +1,14 @@
+{
+  "name": "rembg-vercel-api",
+  "version": "1.0.0",
+  "description": "Background removal API using HuggingFace rembg space on Vercel",
+  "main": "api/rembg.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "node api/rembg.js"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2",
+    "sharp": "^0.32.6"
+  }
+}
