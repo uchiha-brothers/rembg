@@ -39,19 +39,21 @@ export default async function handler(req, res) {
     }
 
     if (outputUrl) {
-      // 🔥 Fetch the tmpfiles image as buffer and send directly
+      // ✅ Success case: send processed image
       const imgResp = await fetch(outputUrl);
       const buffer = Buffer.from(await imgResp.arrayBuffer());
 
       res.setHeader("Content-Type", "image/png");
-      return res.send(buffer); // show image in browser
+      res.setHeader("X-Result", "success");
+      return res.send(buffer);
     }
 
-    // ❌ Fallback: fetch original image as buffer
+    // ❌ Fallback: fetch original image instead
     const fallbackResp = await fetch(url);
     const buffer = Buffer.from(await fallbackResp.arrayBuffer());
 
     res.setHeader("Content-Type", "image/png");
+    res.setHeader("X-Result", "fallback");
     return res.send(buffer);
 
   } catch (err) {
