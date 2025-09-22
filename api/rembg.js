@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     // 1. Download the target image
     const imgResp = await fetch(url);
     if (!imgResp.ok) {
-      return res.status(400).json({ error: "Failed to fetch target image" });
+      return res.status(400).json({ error: "Failed to fetc target image" });
     }
     const buffer = Buffer.from(await imgResp.arrayBuffer());
 
