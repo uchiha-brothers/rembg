@@ -1,5 +1,4 @@
 import fetch from "node-fetch";
-import * as cheerio from "cheerio";
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -16,49 +15,35 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Step 1: Trigger the Hugging Face Space
-    await fetch("https://jerrycoder-rembg-as.hf.space", {
+    // 🚀 Send image URL to HuggingFace rembg Space API
+    const apiResp = await fetch("https://jerrycoder-rembg-as.hf.space/run/predict", {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ data: url }).toString(),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        data: [url], // rembg usually takes "data" array with one element: input image URL
+      }),
     });
 
-    // Step 2: Poll until we find the tmpfiles.org link
-    let outputUrl = null;
-    for (let i = 0; i < 6; i++) {
-      const resp = await fetch("https://jerrycoder-rembg-as.hf.space");
-      const html = await resp.text();
-      const $ = cheerio.load(html);
+    const result = await apiResp.json();
 
-      const link = $("a[href*='tmpfiles.org']").attr("href");
-      if (link) {
-        outputUrl = link.startsWith("http") ? link : `https://jerrycoder-rembg-as.hf.space${link}`;
-        break;
-      }
-      // wait 2s each try
-      await new Promise((r) => setTimeout(r, 2000));
-    }
+    // ✅ If success → result.data[0] contains a base64 PNG
+    if (result && result.data && result.data[0]) {
+      const base64 = result.data[0].split(",")[1]; // strip "data:image/png;base64,"
+      const buffer = Buffer.from(base64, "base64");
 
-    let buffer, fileName;
-
-    if (outputUrl) {
-      // ✅ Success → background removed
-      const imgResp = await fetch(outputUrl);
-      buffer = Buffer.from(await imgResp.arrayBuffer());
-      fileName = "success.png";
-
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Content-Disposition", 'inline; filename="success.png"');
       res.setHeader("X-Result", "success");
-    } else {
-      // ❌ Fallback → return original
-      const fallbackResp = await fetch(url);
-      buffer = Buffer.from(await fallbackResp.arrayBuffer());
-      fileName = "fallback.png";
-
-      res.setHeader("X-Result", "fallback");
+      return res.send(buffer);
     }
+
+    // ❌ If API failed → fallback to original image
+    const fallbackResp = await fetch(url);
+    const buffer = Buffer.from(await fallbackResp.arrayBuffer());
 
     res.setHeader("Content-Type", "image/png");
-    res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
+    res.setHeader("Content-Disposition", 'inline; filename="fallback.png"');
+    res.setHeader("X-Result", "fallback");
     return res.send(buffer);
 
   } catch (err) {
