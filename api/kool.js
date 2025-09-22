@@ -35,25 +35,30 @@ export default async function handler(req, res) {
         outputUrl = link.startsWith("http") ? link : `https://jerrycoder-rembg-as.hf.space${link}`;
         break;
       }
-      await new Promise((r) => setTimeout(r, 3000));
+      // wait 2s each try
+      await new Promise((r) => setTimeout(r, 2000));
     }
+
+    let buffer, fileName;
 
     if (outputUrl) {
-      // ✅ Success case: send processed image
+      // ✅ Success → background removed
       const imgResp = await fetch(outputUrl);
-      const buffer = Buffer.from(await imgResp.arrayBuffer());
+      buffer = Buffer.from(await imgResp.arrayBuffer());
+      fileName = "success.png";
 
-      res.setHeader("Content-Type", "image/png");
       res.setHeader("X-Result", "success");
-      return res.send(buffer);
+    } else {
+      // ❌ Fallback → return original
+      const fallbackResp = await fetch(url);
+      buffer = Buffer.from(await fallbackResp.arrayBuffer());
+      fileName = "fallback.png";
+
+      res.setHeader("X-Result", "fallback");
     }
 
-    // ❌ Fallback: fetch original image instead
-    const fallbackResp = await fetch(url);
-    const buffer = Buffer.from(await fallbackResp.arrayBuffer());
-
     res.setHeader("Content-Type", "image/png");
-    res.setHeader("X-Result", "fallback");
+    res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
     return res.send(buffer);
 
   } catch (err) {
