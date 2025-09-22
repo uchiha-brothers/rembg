@@ -1,16 +1,9 @@
 {
-  "name": "rembg-vercel-scraper",
+  "name": "vercel-rembg-cheerio",
   "version": "1.0.0",
-  "description": "Scrape HuggingFace rembg Space using Cheerio and rehost with tmpfiles.org",
-  "main": "api/rembg.js",
   "type": "module",
-  "scripts": {
-    "dev": "vercel dev",
-    "start": "node api/rembg.js"
-  },
   "dependencies": {
-    "node-fetch": "^3.3.2",
     "cheerio": "^1.0.0-rc.12",
-    "form-data": "^4.0.0"
+    "node-fetch": "^3.3.2"
   }
 }
