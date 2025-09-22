@@ -1,9 +1,15 @@
 {
-  "name": "rembg-vercel",
+  "name": "rembg-vercel-api",
   "version": "1.0.0",
+  "description": "Background removal API using HuggingFace rembg space + tmpfiles upload",
+  "main": "api/rembg.js",
   "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "node api/rembg.js"
+  },
   "dependencies": {
     "node-fetch": "^3.3.2",
-    "sharp": "^0.32.6"
+    "form-data": "^4.0.0"
   }
 }
