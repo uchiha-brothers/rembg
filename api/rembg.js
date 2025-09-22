@@ -1,4 +1,5 @@
 import fetch from "node-fetch";
+import * as cheerio from "cheerio";
 import FormData from "form-data";
 
 export default async function handler(req, res) {
@@ -6,56 +7,51 @@ export default async function handler(req, res) {
   if (!url) return res.status(400).json({ error: "Image URL required ?url=" });
 
   try {
-    // 1. Download the original image
-    const imgResponse = await fetch(url);
-    const buffer = Buffer.from(await imgResponse.arrayBuffer());
-
-    // 2. Encode as Data URI for Hugging Face
-    const base64Input = `data:image/png;base64,${buffer.toString("base64")}`;
-
-    // 3. Send to Hugging Face Space
-    const hfResponse = await fetch(
-      "https://jerrycoder-rembg-as.hf.space/run/remove_bg", // try /predict if /remove_bg fails
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: [base64Input] })
-      }
-    );
-
-    const result = await hfResponse.json();
-
-    if (!result?.data?.[0]) {
-      throw new Error("Hugging Face returned no image");
-    }
-
-    // 4. Extract image
-    let base64Image = result.data[0];
-    if (base64Image.startsWith("data:image")) {
-      base64Image = base64Image.split(",")[1];
-    }
-    const outputBuffer = Buffer.from(base64Image, "base64");
-
-    // 5. Upload to tmpfiles.org
+    // 1. Upload image to your HuggingFace space (simulate user upload)
     const form = new FormData();
-    form.append("file", outputBuffer, { filename: "output.png" });
+    form.append("data", url); // Gradio accepts image URL as "data"
 
-    const tmpResponse = await fetch("https://tmpfiles.org/api/v1/upload", {
+    const response = await fetch("https://jerrycoder-rembg-as.hf.space/", {
       method: "POST",
-      body: form
+      body: form,
     });
 
-    const tmpResult = await tmpResponse.json();
+    const html = await response.text();
 
-    if (!tmpResult?.data?.url) {
-      throw new Error("Failed to upload to tmpfiles.org");
+    // 2. Load the page with cheerio
+    const $ = cheerio.load(html);
+
+    // 3. Find the <img> tag with processed image
+    const imgSrc = $("img").attr("src");
+
+    if (!imgSrc) {
+      throw new Error("Could not find image in HuggingFace response");
     }
 
-    // 6. Return the temporary file link
-    res.status(200).json({ url: tmpResult.data.url });
+    // 4. Download that image
+    const imgResponse = await fetch(imgSrc.startsWith("http") ? imgSrc : `https://jerrycoder-rembg-as.hf.space${imgSrc}`);
+    const buffer = Buffer.from(await imgResponse.arrayBuffer());
+
+    // 5. Upload to tmpfiles.org
+    const formUpload = new FormData();
+    formUpload.append("file", buffer, { filename: "output.png" });
+
+    const tmpRes = await fetch("https://tmpfiles.org/api/v1/upload", {
+      method: "POST",
+      body: formUpload,
+    });
+
+    const tmpJson = await tmpRes.json();
+
+    if (!tmpJson?.data?.url) {
+      throw new Error("Upload to tmpfiles.org failed");
+    }
+
+    // 6. Return temporary download link
+    res.status(200).json({ url: tmpJson.data.url });
 
   } catch (err) {
-    console.error("Error:", err);
+    console.error("Scraper Error:", err);
     res.status(500).json({ error: err.message });
   }
 }
