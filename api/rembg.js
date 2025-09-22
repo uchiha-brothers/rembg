@@ -2,51 +2,42 @@ import fetch from "node-fetch";
 import sharp from "sharp";
 
 export default async function handler(req, res) {
+  const { url } = req.query;
+
+  if (!url) {
+    return res.status(400).json({ error: "Image URL required ?url=" });
+  }
+
   try {
-    const { url } = req.query;
-    if (!url) {
-      return res.status(400).json({ error: "Missing ?url parameter" });
+    // 1. Download input image
+    const imgResponse = await fetch(url);
+    const buffer = Buffer.from(await imgResponse.arrayBuffer());
+
+    // 2. Send to Hugging Face Space
+    const hfResponse = await fetch(
+      "https://jerrycoder-rembg-as.hf.space/run/predict",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: [buffer.toString("base64")] })
+      }
+    );
+
+    const result = await hfResponse.json();
+
+    if (!result || !result.data) {
+      throw new Error("Invalid response from Hugging Face API");
     }
 
-    // 1. Download the target image
-    const imgResp = await fetch(url);
-    if (!imgResp.ok) {
-      return res.status(400).json({ error: "Failed to fetc target image" });
-    }
-    const buffer = Buffer.from(await imgResp.arrayBuffer());
+    // 3. Convert HuggingFace output back to buffer
+    const output = Buffer.from(result.data[0], "base64");
 
-    // 2. Convert image to base64 for HuggingFace API
-    const base64Image = "data:image/png;base64," + buffer.toString("base64");
-
-    // 3. Call your HuggingFace Space API
-    const hfResp = await fetch("https://JerryCoder-rembg-as.hf.space/run/predict", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data: [base64Image] }),
-    });
-
-    if (!hfResp.ok) {
-      return res.status(500).json({ error: "Invalid response from Hugging Face API" });
-    }
-
-    const result = await hfResp.json();
-    if (!result.data || !result.data[0]) {
-      return res.status(500).json({ error: "No data returned from Hugging Face API" });
-    }
-
-    // 4. Extract base64 result
-    const outputBase64 = result.data[0].replace(/^data:image\/\w+;base64,/, "");
-    const outputBuffer = Buffer.from(outputBase64, "base64");
-
-    // 5. Optimize (optional: convert to PNG via sharp)
-    const finalImage = await sharp(outputBuffer).png().toBuffer();
-
-    // 6. Send image back to browser
+    // 4. Send image directly to browser
     res.setHeader("Content-Type", "image/png");
-    res.send(finalImage);
+    res.send(output);
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error", details: err.message });
+    console.error("Rembg API Error:", err);
+    res.status(500).json({ error: err.message });
   }
 }
