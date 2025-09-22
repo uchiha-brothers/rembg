@@ -1,5 +1,4 @@
 import fetch from "node-fetch";
-import sharp from "sharp";
 
 export default async function handler(req, res) {
   const { url } = req.query;
@@ -13,24 +12,31 @@ export default async function handler(req, res) {
     const imgResponse = await fetch(url);
     const buffer = Buffer.from(await imgResponse.arrayBuffer());
 
-    // 2. Send to Hugging Face Space
+    // 2. Send to Hugging Face Space (Gradio API)
     const hfResponse = await fetch(
       "https://jerrycoder-rembg-as.hf.space/run/predict",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: [buffer.toString("base64")] })
+        body: JSON.stringify({
+          data: [buffer.toString("base64")] // send as base64
+        })
       }
     );
 
     const result = await hfResponse.json();
 
-    if (!result || !result.data) {
-      throw new Error("Invalid response from Hugging Face API");
+    if (!result || !result.data || !result.data[0]) {
+      throw new Error("Hugging Face returned no image");
     }
 
-    // 3. Convert HuggingFace output back to buffer
-    const output = Buffer.from(result.data[0], "base64");
+    // 3. Extract base64 (strip "data:image/png;base64,")
+    let base64Image = result.data[0];
+    if (base64Image.startsWith("data:image")) {
+      base64Image = base64Image.split(",")[1];
+    }
+
+    const output = Buffer.from(base64Image, "base64");
 
     // 4. Send image directly to browser
     res.setHeader("Content-Type", "image/png");
