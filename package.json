@@ -1,7 +1,7 @@
 {
-  "name": "rembg-vercel-api",
+  "name": "rembg-vercel-scraper",
   "version": "1.0.0",
-  "description": "Background removal API using HuggingFace rembg space + tmpfiles upload",
+  "description": "Scrape HuggingFace rembg Space using Cheerio and rehost with tmpfiles.org",
   "main": "api/rembg.js",
   "type": "module",
   "scripts": {
@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "node-fetch": "^3.3.2",
+    "cheerio": "^1.0.0-rc.12",
     "form-data": "^4.0.0"
   }
 }
