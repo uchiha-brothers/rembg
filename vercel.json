@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "api/rembg.py": {
+      "runtime": "python3.9"
+    }
+  },
+  "routes": [
+    { "src": "/api/rembg", "dest": "api/rembg.py" }
+  ]
+}
