@@ -7,9 +7,9 @@ export default async function handler(req, res) {
   if (!url) return res.status(400).json({ error: "Image URL required ?url=" });
 
   try {
-    // 1. Upload image to your HuggingFace space (simulate user upload)
+    // 1. Send request to HuggingFace Space (simulate user uploading an image URL)
     const form = new FormData();
-    form.append("data", url); // Gradio accepts image URL as "data"
+    form.append("data", url);
 
     const response = await fetch("https://jerrycoder-rembg-as.hf.space/", {
       method: "POST",
@@ -18,21 +18,29 @@ export default async function handler(req, res) {
 
     const html = await response.text();
 
-    // 2. Load the page with cheerio
+    // 2. Parse with cheerio
     const $ = cheerio.load(html);
 
-    // 3. Find the <img> tag with processed image
-    const imgSrc = $("img").attr("src");
+    // Try to locate result image in the "Result with Transparent Background" block
+    let imgSrc = $("div#output-image img").attr("src");
 
+    // fallback: grab second image (since left=original, right=processed)
     if (!imgSrc) {
-      throw new Error("Could not find image in HuggingFace response");
+      const imgs = $("img").map((i, el) => $(el).attr("src")).get();
+      imgSrc = imgs.length > 1 ? imgs[1] : imgs[0];
     }
 
-    // 4. Download that image
-    const imgResponse = await fetch(imgSrc.startsWith("http") ? imgSrc : `https://jerrycoder-rembg-as.hf.space${imgSrc}`);
+    if (!imgSrc) {
+      throw new Error("Could not find processed image in HuggingFace page");
+    }
+
+    // 3. Download the result image
+    const imgResponse = await fetch(
+      imgSrc.startsWith("http") ? imgSrc : `https://jerrycoder-rembg-as.hf.space${imgSrc}`
+    );
     const buffer = Buffer.from(await imgResponse.arrayBuffer());
 
-    // 5. Upload to tmpfiles.org
+    // 4. Upload to tmpfiles.org
     const formUpload = new FormData();
     formUpload.append("file", buffer, { filename: "output.png" });
 
@@ -47,7 +55,7 @@ export default async function handler(req, res) {
       throw new Error("Upload to tmpfiles.org failed");
     }
 
-    // 6. Return temporary download link
+    // 5. Respond with temporary download URL
     res.status(200).json({ url: tmpJson.data.url });
 
   } catch (err) {
