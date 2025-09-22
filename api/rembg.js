@@ -1,50 +1,70 @@
 import fetch from "node-fetch";
-import * as cheerio from "cheerio";
+import FormData from "form-data";
 
 export default async function handler(req, res) {
+  const { url } = req.query;
+
+  if (!url) {
+    return res.status(400).json({ error: "Missing ?url parameter" });
+  }
+
   try {
-    const { url } = req.query;
-    if (!url) {
-      return res.status(400).json({ error: "Missing ?url=" });
+    // 1. Download image from target URL
+    const imgResp = await fetch(url);
+    if (!imgResp.ok) {
+      throw new Error("Failed to fetch target image");
     }
+    const imgBuffer = Buffer.from(await imgResp.arrayBuffer());
 
-    // Send image URL to your HuggingFace Space
-    const response = await fetch("https://jerrycoder-rembg-as.hf.space/api/predict/", {
+    // 2. Send to Hugging Face Space
+    const fd = new FormData();
+    fd.append("data", imgBuffer, { filename: "input.png", contentType: "image/png" });
+
+    const hfResp = await fetch("https://jerrycoder-rembg-as.hf.space/api/predict", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        data: [url] // Gradio API expects an array
-      })
+      body: fd,
     });
 
-    if (!response.ok) {
-      return res.status(500).json({ error: "Hugging Face request failed" });
+    if (!hfResp.ok) {
+      throw new Error(`HF API failed: ${hfResp.status}`);
     }
 
-    const result = await response.json();
+    const hfData = await hfResp.json();
 
-    // result.data usually contains HTML with tmpfiles.org link
-    const html = JSON.stringify(result);
-    const $ = cheerio.load(html);
+    if (!hfData.data || !hfData.data[0]) {
+      return res.status(500).json({ error: "Hugging Face returned no image" });
+    }
 
-    let tmpLink;
-    $("a").each((_, el) => {
-      const link = $(el).attr("href");
-      if (link && link.includes("tmpfiles.org")) {
-        tmpLink = link;
-      }
+    // 3. Convert Base64 → Buffer
+    const base64Image = hfData.data[0].replace(/^data:image\/png;base64,/, "");
+    const buffer = Buffer.from(base64Image, "base64");
+
+    // 4. Upload to tmpfiles.org
+    const tmpForm = new FormData();
+    tmpForm.append("file", buffer, { filename: "output.png", contentType: "image/png" });
+
+    const tmpResp = await fetch("https://tmpfiles.org/api/v1/upload", {
+      method: "POST",
+      body: tmpForm,
     });
 
-    if (!tmpLink) {
-      return res.status(500).json({ error: "Could not extract tmpfiles.org link" });
+    if (!tmpResp.ok) {
+      throw new Error("Tmpfiles upload failed");
     }
 
-    return res.status(200).json({ success: true, output_url: tmpLink });
+    const tmpData = await tmpResp.json();
+    if (!tmpData.data || !tmpData.data.url) {
+      return res.status(500).json({ error: "Upload failed" });
+    }
 
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: "Server error", details: error.message });
+    // 5. Return JSON with final URL
+    return res.status(200).json({
+      success: true,
+      url: tmpData.data.url,
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: err.message });
   }
 }
