@@ -77,7 +77,7 @@ input[type="file"],input[type="text"]{
   overflow:hidden;
 }
 .card:hover{transform:scale(1.05);}
-.card video, .card iframe, .card img{width:100%;height:140px;object-fit:cover;}
+.card video, .card img{width:100%;height:140px;object-fit:cover;}
 .card p{padding:10px;margin:0;}
 .latest{
   display:flex;
@@ -120,7 +120,7 @@ input[type="file"],input[type="text"]{
   <input id="title" placeholder="File Title">
   <input type="file" id="fileInput" accept="*/*">
   <button onclick="upload()">Upload</button>
-  <select id="sort" onchange="sortVideos()">
+  <select id="sort" onchange="sortFiles()">
     <option value="latest">Latest</option>
     <option value="az">A-Z</option>
     <option value="random">Random</option>
@@ -156,6 +156,16 @@ function saveFiles(){
   localStorage.setItem("files", JSON.stringify(files))
 }
 
+function renderCard(f){
+  if(f.url.match(/\.(mp4|webm|ogg)$/i)){
+    return `<video src="${f.url}" muted></video><p>${f.title}</p>`
+  } else if(f.url.match(/\.(jpe?g|png|gif|webp)$/i)){
+    return `<img src="${f.url}" alt="${f.title}"><p>${f.title}</p>`
+  } else {
+    return `<p style="padding:10px;">${f.title}</p>`
+  }
+}
+
 function showLatest(){
   latest.innerHTML = ""
   files.slice(-5).reverse().forEach(f=>{
@@ -166,7 +176,7 @@ function showLatest(){
   })
 }
 
-function sortVideos(){
+function sortFiles(){
   let sorted = [...files]
   const type = document.getElementById("sort").value
   if(type==="az") sorted.sort((a,b)=>a.title.localeCompare(b.title))
@@ -180,16 +190,6 @@ function sortVideos(){
     card.onclick = ()=>play(f)
     grid.appendChild(card)
   })
-}
-
-function renderCard(f){
-  if(f.url.match(/\.(mp4|webm|ogg)$/i)){
-    return `<video src="${f.url}" muted></video><p>${f.title}</p>`
-  } else if(f.url.match(/\.(jpe?g|png|gif|webp)$/i)){
-    return `<img src="${f.url}" alt="${f.title}"><p>${f.title}</p>`
-  } else {
-    return `<p style="padding:10px;">${f.title}</p>`
-  }
 }
 
 function filterVideos(){
@@ -216,7 +216,7 @@ function play(f){
   }
 }
 
-// --------- Ashlynn Repository Upload Method ---------
+// --------- CdnFile Upload Method ---------
 async function upload(){
   const title = document.getElementById("title").value.trim()
   const file = document.getElementById("fileInput").files[0]
@@ -237,10 +237,10 @@ async function upload(){
     const formData = new FormData()
     formData.append("file", file)
 
-    const res = await fetch("https://corsproxy.io/?https://ar-hosting.pages.dev/upload", {
-  method: "POST",
-  body: formData
-})
+    const res = await fetch("https://cdnfile.pages.dev/upload", {
+      method: "POST",
+      body: formData
+    })
 
     const data = await res.json()
 
@@ -260,7 +260,7 @@ async function upload(){
 
     files.push({title: title, url: data.url, timestamp: Date.now()})
     saveFiles()
-    sortVideos()
+    sortFiles()
     showLatest()
     alert("Upload complete!")
 
@@ -276,7 +276,7 @@ async function upload(){
 // -----------------------------------------
 
 // Initial render
-sortVideos()
+sortFiles()
 showLatest()
 </script>
 </body>
