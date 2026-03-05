@@ -1,47 +1,40 @@
 import { createClient } from "@supabase/supabase-js"
 
 const supabase = createClient(
-process.env.SUPABASE_URL,
-process.env.SUPABASE_KEY
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
 )
 
 export default async function handler(req,res){
 
-if(req.method==="GET"){
+  if(req.method==="GET"){
+    const { data, error } = await supabase
+      .from("videos")
+      .select("*")
+      .order("created_at",{ascending:false})
 
-const { data } = await supabase
-.from("videos")
-.select("*")
-.order("created_at",{ascending:false})
+    if(error) return res.status(500).json({error:error.message})
+    return res.json(data)
+  }
 
-return res.json(data)
+  if(req.method==="POST"){
+    const { title, url } = req.body
+    if(!title || !url) return res.status(400).json({error:"Missing data"})
 
-}
+    // Check duplicate
+    const { data:existing } = await supabase
+      .from("videos")
+      .select("*")
+      .eq("title", title)
 
-if(req.method==="POST"){
+    if(existing.length) return res.status(400).json({error:"Title exists"})
 
-const {title,url} = req.body
+    const { error } = await supabase
+      .from("videos")
+      .insert({ title, url })
 
-if(!title || !url){
-return res.status(400).json({error:"Missing data"})
-}
+    if(error) return res.status(500).json({error:error.message})
 
-const { data:existing } = await supabase
-.from("videos")
-.select("*")
-.eq("title",title)
-
-if(existing.length){
-return res.status(400).json({error:"Title exists"})
-}
-
-await supabase.from("videos").insert({
-title:title,
-url:url
-})
-
-res.json({success:true})
-
-}
-
+    res.json({success:true})
+  }
 }
