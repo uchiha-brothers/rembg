@@ -1,265 +1,130 @@
 <!DOCTYPE html>
-
 <html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-
 <title>AnimeStream</title>
-
 <style>
-
-body{
-background:#0f0f0f;
-color:white;
-font-family:Arial;
-margin:0;
-}
-
-header{
-background:#111;
-padding:15px;
-}
-
-.controls{
-padding:20px;
-display:flex;
-gap:10px;
-flex-wrap:wrap;
-}
-
-input,select,button{
-padding:10px;
-background:#1a1a1a;
-border:1px solid #333;
-color:white;
-}
-
-.grid{
-display:grid;
-grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
-gap:15px;
-padding:20px;
-}
-
-.card{
-background:#151515;
-cursor:pointer;
-}
-
-.card video{
-width:100%;
-height:140px;
-object-fit:cover;
-}
-
-.card p{
-padding:10px;
-margin:0;
-}
-
-.latest{
-display:flex;
-gap:10px;
-overflow-x:auto;
-padding:20px;
-}
-
-.latest video{
-width:200px;
-height:120px;
-object-fit:cover;
-}
-
-#loading{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-height:100%;
-background:black;
-display:none;
-align-items:center;
-justify-content:center;
-font-size:24px;
-}
-
+body{background:#0f0f0f;color:white;font-family:Arial;margin:0}
+header{background:#111;padding:15px}
+.controls{padding:20px;display:flex;gap:10px;flex-wrap:wrap}
+input,select,button{padding:10px;background:#1a1a1a;border:1px solid #333;color:white;border-radius:4px}
+button{cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:15px;padding:20px}
+.card{background:#151515;cursor:pointer;transition:.2s;border-radius:6px;overflow:hidden}
+.card:hover{transform:scale(1.05)}
+.card video{width:100%;height:140px;object-fit:cover}
+.card p{padding:10px;margin:0}
+.latest{display:flex;gap:10px;overflow-x:auto;padding:20px}
+.latest video{width:200px;height:120px;object-fit:cover}
+#loading{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;font-size:24px;z-index:100;display:none}
 </style>
-
 </head>
 <body>
-
-<header>
-<h2>AnimeStream</h2>
-</header>
+<header><h2>AnimeStream</h2></header>
 
 <div class="controls">
-
 <input id="title" placeholder="Video Title">
-
 <input type="file" id="video" accept="video/*">
-
 <button onclick="upload()">Upload</button>
-
 <select id="sort" onchange="sortVideos()">
 <option value="latest">Latest</option>
 <option value="az">A-Z</option>
 <option value="random">Random</option>
 </select>
-
 </div>
 
 <h3 style="padding-left:20px">Latest Uploads</h3>
-
 <div class="latest" id="latest"></div>
 
 <h3 style="padding-left:20px">All Videos</h3>
-
 <div class="grid" id="grid"></div>
 
 <div id="loading">Uploading Video...</div>
 
 <script>
-
 let videos=[]
-
 const grid=document.getElementById("grid")
 const latest=document.getElementById("latest")
 const loading=document.getElementById("loading")
 
 async function load(){
-
-const res=await fetch("/api/videos")
-videos=await res.json()
-
-showLatest()
-sortVideos()
-
+  try {
+    const res = await fetch("/api/videos")
+    videos = await res.json()
+    showLatest()
+    sortVideos()
+  } catch(e){ console.error("Load failed:", e) }
 }
 
 function showLatest(){
-
-latest.innerHTML=""
-
-videos.slice(0,5).forEach(v=>{
-
-const div=document.createElement("div")
-
-div.innerHTML=`
-<video src="${v.url}" muted></video>
-<p>${v.title}</p>
-`
-
-div.onclick=()=>play(v)
-
-latest.appendChild(div)
-
-})
-
+  latest.innerHTML=""
+  videos.slice(0,5).forEach(v=>{
+    const div=document.createElement("div")
+    div.innerHTML=`<video src="${v.url}" muted></video><p>${v.title}</p>`
+    div.onclick=()=>play(v)
+    latest.appendChild(div)
+  })
 }
 
 function sortVideos(){
-
-let sorted=[...videos]
-
-const type=document.getElementById("sort").value
-
-if(type==="az"){
-sorted.sort((a,b)=>a.title.localeCompare(b.title))
-}
-
-if(type==="random"){
-sorted.sort(()=>Math.random()-0.5)
-}
-
-grid.innerHTML=""
-
-sorted.forEach(v=>{
-
-const card=document.createElement("div")
-
-card.className="card"
-
-card.innerHTML=`
-<video src="${v.url}" muted></video>
-<p>${v.title}</p>
-`
-
-card.onclick=()=>play(v)
-
-grid.appendChild(card)
-
-})
-
+  let sorted=[...videos]
+  const type=document.getElementById("sort").value
+  if(type==="az") sorted.sort((a,b)=>a.title.localeCompare(b.title))
+  if(type==="random") sorted.sort(()=>Math.random()-0.5)
+  if(type==="latest") sorted.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))
+  grid.innerHTML=""
+  sorted.forEach(v=>{
+    const card=document.createElement("div")
+    card.className="card"
+    card.innerHTML=`<video src="${v.url}" muted></video><p>${v.title}</p>`
+    card.onclick=()=>play(v)
+    grid.appendChild(card)
+  })
 }
 
 function play(v){
-
-const win=window.open()
-
-win.document.write(`
-<body style="margin:0;background:black">
-<video src="${v.url}" controls autoplay style="width:100%">
-</video>
-</body>
-`)
-
+  const win=window.open()
+  win.document.write(`<body style="margin:0;background:black"><video src="${v.url}" controls autoplay style="width:100%;height:100%"></video></body>`)
 }
 
 async function upload(){
+  const title=document.getElementById("title").value
+  const file=document.getElementById("video").files[0]
+  if(!title||!file){ alert("Missing title or video"); return }
 
-const title=document.getElementById("title").value
-const file=document.getElementById("video").files[0]
+  loading.style.display="flex"
 
-if(!title||!file){
-alert("Missing data")
-return
-}
+  try{
+    // Upload to Catbox
+    const formData=new FormData()
+    formData.append("reqtype","fileupload")
+    formData.append("fileToUpload",file)
 
-loading.style.display="flex"
+    const catbox=await fetch("https://catbox.moe/user/api.php",{
+      method:"POST",
+      body:formData
+    })
+    const url=(await catbox.text()).trim()
 
-console.log("Uploading to Catbox...")
+    // Save metadata to Supabase
+    const res=await fetch("/api/videos",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({title,url})
+    })
+    const data=await res.json()
+    if(data.error) alert("Supabase error: "+data.error)
 
-const formData=new FormData()
-formData.append("reqtype","fileupload")
-formData.append("fileToUpload",file)
+  } catch(e){ console.error("Upload failed:", e); alert("Upload failed: "+e.message) }
 
-const upload=await fetch("https://catbox.moe/user/api.php",{
-method:"POST",
-body:formData
-})
-
-console.log("Catbox response received")
-
-const url=(await upload.text()).trim()
-
-console.log("Video URL:",url)
-
-console.log("Saving to Supabase...")
-
-await fetch("/api/videos",{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-title:title,
-url:url
-})
-})
-
-console.log("Saved!")
-
-loading.style.display="none"
-
-load()
-
-
+  loading.style.display="none"
+  document.getElementById("title").value=""
+  document.getElementById("video").value=""
+  load()
 }
 
 load()
-
 </script>
-
 </body>
 </html>
