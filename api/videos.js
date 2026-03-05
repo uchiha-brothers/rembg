@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
-import fetch from "node-fetch"
 import formidable from "formidable"
 import fs from "fs"
+import FormData from "form-data"
 
 export const config = {
   api: { bodyParser: false }
