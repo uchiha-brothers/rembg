@@ -1,267 +1,274 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-
-<title>AnimeStream V4</title>
-
+<title>AnimeStream</title>
 <style>
-
+:root {
+  --bg-color: #0f0f0f;
+  --text-color: white;
+  --card-bg: #151515;
+  --header-bg: #111;
+  --input-bg: #1a1a1a;
+}
+[data-theme="light"] {
+  --bg-color: #f5f5f5;
+  --text-color: #111;
+  --card-bg: #fff;
+  --header-bg: #ddd;
+  --input-bg: #eee;
+}
 body{
-margin:0;
-font-family:Arial;
-background:#0f0f0f;
-color:white;
+  background: var(--bg-color);
+  color: var(--text-color);
+  font-family: Arial,sans-serif;
+  margin:0;
 }
-
 header{
-background:#111;
-padding:15px;
-display:flex;
-justify-content:space-between;
-align-items:center;
+  background: var(--header-bg);
+  padding: 15px;
+  display:flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap:wrap;
 }
-
-.logo{
-color:#ff6400;
-font-size:22px;
-font-weight:bold;
+header h2{margin:0;}
+.navbar{display:flex;gap:15px;align-items:center;flex-wrap:wrap;}
+.navbar input[type="text"]{
+  padding:6px 10px;
+  border-radius:4px;
+  border:1px solid #333;
+  background: var(--input-bg);
+  color: var(--text-color);
 }
-
-.search{
-padding:8px;
-background:#222;
-border:none;
-color:white;
-}
-
-.grid{
-display:grid;
-grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
-gap:15px;
-padding:20px;
-}
-
-.card{
-background:#1b1b1b;
-border-radius:8px;
-overflow:hidden;
-cursor:pointer;
-transition:.2s;
-}
-
-.card:hover{
-transform:scale(1.05);
-}
-
-.card video{
-width:100%;
-height:140px;
-object-fit:cover;
-}
-
-.card p{
-padding:10px;
-font-size:14px;
-}
-
-.playerPage{
-display:none;
-padding:20px;
-}
-
-.player video{
-width:100%;
-max-height:70vh;
-background:black;
-border-radius:8px;
-}
-
-.upload{
-padding:20px;
-background:#111;
-}
-
-input,button{
-padding:10px;
-margin:5px;
-}
-
 button{
-background:#ff6400;
-border:none;
-color:white;
-cursor:pointer;
+  cursor:pointer;
+  padding:8px 12px;
+  border:none;
+  border-radius:4px;
+  background:#1a1a1a;
+  color:white;
 }
-
+.controls{
+  padding:20px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+input[type="file"],input[type="text"]{
+  padding:10px;
+  background: var(--input-bg);
+  border:1px solid #333;
+  color: var(--text-color);
+  border-radius:4px;
+}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:15px;
+  padding:20px;
+}
+.card{
+  background: var(--card-bg);
+  cursor:pointer;
+  transition:.2s;
+  border-radius:6px;
+  overflow:hidden;
+}
+.card:hover{transform:scale(1.05);}
+.card video, .card iframe, .card img{width:100%;height:140px;object-fit:cover;}
+.card p{padding:10px;margin:0;}
+.latest{
+  display:flex;
+  gap:10px;
+  overflow-x:auto;
+  padding:20px;
+}
+.latest video, .latest img{width:200px;height:120px;object-fit:cover;}
+#loading{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background: rgba(0,0,0,0.85);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+  z-index:100;
+  display:none;
+}
+@media(max-width:600px){
+  .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));}
+  .latest video, .latest img{width:140px;height:100px;}
+}
 </style>
-
 </head>
-<body>
-
+<body data-theme="dark">
 <header>
-
-<div class="logo">AnimeStream</div>
-
-<input class="search" id="search" placeholder="Search">
-
+  <h2>AnimeStream</h2>
+  <div class="navbar">
+    <button onclick="toggleTheme()">🌙 / ☀️</button>
+    <input type="text" id="search" placeholder="Search files..." oninput="filterVideos()">
+    <button onclick="showUploadForm()">Upload</button>
+  </div>
 </header>
 
-<div class="upload">
-
-<h3>Upload Video</h3>
-
-<input id="title" placeholder="Video title">
-
-<input type="file" id="file" accept="video/*">
-
-<button onclick="upload()">Upload</button>
-
+<div class="controls" id="uploadControls" style="display:none">
+  <input id="title" placeholder="File Title">
+  <input type="file" id="fileInput" accept="*/*">
+  <button onclick="upload()">Upload</button>
+  <select id="sort" onchange="sortVideos()">
+    <option value="latest">Latest</option>
+    <option value="az">A-Z</option>
+    <option value="random">Random</option>
+  </select>
 </div>
 
-<div id="home" class="grid"></div>
+<h3 style="padding-left:20px">Latest Uploads</h3>
+<div class="latest" id="latest"></div>
 
-<div id="playerPage" class="playerPage">
+<h3 style="padding-left:20px">All Files</h3>
+<div class="grid" id="grid"></div>
 
-<button onclick="home()">⬅ Back</button>
-
-<div class="player">
-
-<video id="player" controls></video>
-
-<h2 id="ptitle"></h2>
-
-</div>
-
-</div>
+<div id="loading">Uploading File...</div>
 
 <script>
+let files = JSON.parse(localStorage.getItem("files") || "[]")
+const grid = document.getElementById("grid")
+const latest = document.getElementById("latest")
+const loading = document.getElementById("loading")
+const searchInput = document.getElementById("search")
+const uploadControls = document.getElementById("uploadControls")
 
-let db = JSON.parse(localStorage.getItem("db") || "[]")
-
-const grid = document.getElementById("home")
-
-function render(){
-
-grid.innerHTML=""
-
-db.forEach((v,i)=>{
-
-const card=document.createElement("div")
-
-card.className="card"
-
-card.innerHTML=`
-<video src="${v.url}" muted preload="metadata"></video>
-<p>${v.title}</p>
-`
-
-card.onclick=()=>play(i)
-
-grid.appendChild(card)
-
-})
-
+function toggleTheme(){
+  const body = document.body
+  body.dataset.theme = body.dataset.theme==="dark"?"light":"dark"
 }
 
+function showUploadForm(){
+  uploadControls.style.display = uploadControls.style.display==="none"?"flex":"none"
+}
+
+function saveFiles(){
+  localStorage.setItem("files", JSON.stringify(files))
+}
+
+function showLatest(){
+  latest.innerHTML = ""
+  files.slice(-5).reverse().forEach(f=>{
+    const div = document.createElement("div")
+    div.innerHTML = renderCard(f)
+    div.onclick = ()=>play(f)
+    latest.appendChild(div)
+  })
+}
+
+function sortVideos(){
+  let sorted = [...files]
+  const type = document.getElementById("sort").value
+  if(type==="az") sorted.sort((a,b)=>a.title.localeCompare(b.title))
+  if(type==="random") sorted.sort(()=>Math.random()-0.5)
+  if(type==="latest") sorted.sort((a,b)=>b.timestamp - a.timestamp)
+  grid.innerHTML = ""
+  sorted.forEach(f=>{
+    const card = document.createElement("div")
+    card.className = "card"
+    card.innerHTML = renderCard(f)
+    card.onclick = ()=>play(f)
+    grid.appendChild(card)
+  })
+}
+
+function renderCard(f){
+  if(f.url.match(/\.(mp4|webm|ogg)$/i)){
+    return `<video src="${f.url}" muted></video><p>${f.title}</p>`
+  } else if(f.url.match(/\.(jpe?g|png|gif|webp)$/i)){
+    return `<img src="${f.url}" alt="${f.title}"><p>${f.title}</p>`
+  } else {
+    return `<p style="padding:10px;">${f.title}</p>`
+  }
+}
+
+function filterVideos(){
+  const query = searchInput.value.toLowerCase()
+  let filtered = files.filter(f=>f.title.toLowerCase().includes(query))
+  grid.innerHTML=""
+  filtered.forEach(f=>{
+    const card = document.createElement("div")
+    card.className = "card"
+    card.innerHTML = renderCard(f)
+    card.onclick = ()=>play(f)
+    grid.appendChild(card)
+  })
+}
+
+function play(f){
+  const win = window.open()
+  if(f.url.match(/\.(mp4|webm|ogg)$/i)){
+    win.document.write(`<body style="margin:0;background:black"><video src="${f.url}" controls autoplay style="width:100%;height:100%"></video></body>`)
+  } else if(f.url.match(/\.(jpe?g|png|gif|webp)$/i)){
+    win.document.write(`<body style="margin:0;background:black;display:flex;align-items:center;justify-content:center"><img src="${f.url}" style="max-width:100%;max-height:100%"></body>`)
+  } else {
+    win.document.write(`<body style="margin:20px;font-family:Arial;color:white;background:black"><h2>${f.title}</h2><p><a href="${f.url}" target="_blank" style="color:lightblue">${f.url}</a></p></body>`)
+  }
+}
+
+// --------- Ashlynn Repository Upload Method ---------
 async function upload(){
+  const title = document.getElementById("title").value.trim()
+  const file = document.getElementById("fileInput").files[0]
 
-const title=document.getElementById("title").value.trim()
-const file=document.getElementById("file").files[0]
+  if(!title || !file){
+    alert("Add title and select a file")
+    return
+  }
 
-if(!title || !file){
-alert("Add title and video")
-return
+  if(files.find(f=>f.title.toLowerCase()===title.toLowerCase())){
+    alert("Title already exists")
+    return
+  }
+
+  loading.style.display = "flex"
+
+  try{
+    const formData = new FormData()
+    formData.append("file", file)
+
+    const res = await fetch("https://ar-hosting.pages.dev/upload", {
+      method: "POST",
+      body: formData
+    })
+
+    const data = await res.json()
+    if(!data.url){
+      alert("Upload failed")
+      loading.style.display = "none"
+      return
+    }
+
+    files.push({title: title, url: data.url, timestamp: Date.now()})
+    saveFiles()
+    sortVideos()
+    showLatest()
+    alert("Upload complete!")
+
+  } catch(e){
+    console.error("Upload error:", e)
+    alert("Upload failed!")
+  }
+
+  loading.style.display = "none"
+  document.getElementById("title").value=""
+  document.getElementById("fileInput").value=""
 }
+// -----------------------------------------
 
-const allowed=["video/mp4","video/webm","video/ogg","video/x-matroska"]
-
-if(!allowed.includes(file.type)){
-alert("Only video files allowed")
-return
-}
-
-if(db.find(v=>v.title.toLowerCase()==title.toLowerCase())){
-alert("Same title already uploaded")
-return
-}
-
-const form=new FormData()
-
-form.append("reqtype","fileupload")
-form.append("fileToUpload",file)
-
-alert("Uploading...")
-
-try{
-
-const res=await fetch("https://corsproxy.io/?https://catbox.moe/user/api.php",{
-method:"POST",
-body:form
-})
-
-let url=(await res.text()).trim()
-
-if(!url.startsWith("https")){
-alert("Upload failed")
-return
-}
-
-db.push({
-title:title,
-url:url
-})
-
-localStorage.setItem("db",JSON.stringify(db))
-
-render()
-
-alert("Upload complete")
-
-}catch(e){
-
-alert("Upload error")
-
-}
-
-}
-
-function play(i){
-
-document.getElementById("home").style.display="none"
-document.getElementById("playerPage").style.display="block"
-
-const v=db[i]
-
-document.getElementById("player").src=v.url
-document.getElementById("ptitle").innerText=v.title
-
-}
-
-function home(){
-
-document.getElementById("playerPage").style.display="none"
-document.getElementById("home").style.display="grid"
-
-}
-
-document.getElementById("search").addEventListener("input",e=>{
-
-const q=e.target.value.toLowerCase()
-
-const cards=document.querySelectorAll(".card")
-
-cards.forEach(c=>{
-c.style.display=c.innerText.toLowerCase().includes(q)?"block":"none"
-})
-
-})
-
-render()
-
+// Initial render
+sortVideos()
+showLatest()
 </script>
-
 </body>
 </html>
