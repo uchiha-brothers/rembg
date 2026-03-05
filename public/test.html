@@ -243,8 +243,17 @@ async function upload(){
     })
 
     const data = await res.json()
+
+    if(data.error){
+      alert("Upload failed: " + data.error)
+      console.error("Upload failed:", data)
+      loading.style.display = "none"
+      return
+    }
+
     if(!data.url){
-      alert("Upload failed")
+      alert("Upload failed: No URL returned")
+      console.error("Upload failed: invalid response", data)
       loading.style.display = "none"
       return
     }
@@ -257,7 +266,7 @@ async function upload(){
 
   } catch(e){
     console.error("Upload error:", e)
-    alert("Upload failed!")
+    alert("Upload failed: " + e.message)
   }
 
   loading.style.display = "none"
