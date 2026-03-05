@@ -31,8 +31,8 @@ const form = formidable()
 
 form.parse(req, async (err,fields,files)=>{
 
-const title = fields.title
-const file = files.video
+const title = Array.isArray(fields.title) ? fields.title[0] : fields.title
+const file = Array.isArray(files.video) ? files.video[0] : files.video
 
 if(!title || !file){
 return res.status(400).json({error:"Missing data"})
