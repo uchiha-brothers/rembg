@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>AnimeStream V4</title>
+
+<style>
+
+body{
+margin:0;
+font-family:Arial;
+background:#0f0f0f;
+color:white;
+}
+
+header{
+background:#111;
+padding:15px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+.logo{
+color:#ff6400;
+font-size:22px;
+font-weight:bold;
+}
+
+.search{
+padding:8px;
+background:#222;
+border:none;
+color:white;
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+gap:15px;
+padding:20px;
+}
+
+.card{
+background:#1b1b1b;
+border-radius:8px;
+overflow:hidden;
+cursor:pointer;
+transition:.2s;
+}
+
+.card:hover{
+transform:scale(1.05);
+}
+
+.card video{
+width:100%;
+height:140px;
+object-fit:cover;
+}
+
+.card p{
+padding:10px;
+font-size:14px;
+}
+
+.playerPage{
+display:none;
+padding:20px;
+}
+
+.player video{
+width:100%;
+max-height:70vh;
+background:black;
+border-radius:8px;
+}
+
+.upload{
+padding:20px;
+background:#111;
+}
+
+input,button{
+padding:10px;
+margin:5px;
+}
+
+button{
+background:#ff6400;
+border:none;
+color:white;
+cursor:pointer;
+}
+
+</style>
+
+</head>
+<body>
+
+<header>
+
+<div class="logo">AnimeStream</div>
+
+<input class="search" id="search" placeholder="Search">
+
+</header>
+
+<div class="upload">
+
+<h3>Upload Video</h3>
+
+<input id="title" placeholder="Video title">
+
+<input type="file" id="file" accept="video/*">
+
+<button onclick="upload()">Upload</button>
+
+</div>
+
+<div id="home" class="grid"></div>
+
+<div id="playerPage" class="playerPage">
+
+<button onclick="home()">⬅ Back</button>
+
+<div class="player">
+
+<video id="player" controls></video>
+
+<h2 id="ptitle"></h2>
+
+</div>
+
+</div>
+
+<script>
+
+let db = JSON.parse(localStorage.getItem("db") || "[]")
+
+const grid = document.getElementById("home")
+
+function render(){
+
+grid.innerHTML=""
+
+db.forEach((v,i)=>{
+
+const card=document.createElement("div")
+
+card.className="card"
+
+card.innerHTML=`
+<video src="${v.url}" muted preload="metadata"></video>
+<p>${v.title}</p>
+`
+
+card.onclick=()=>play(i)
+
+grid.appendChild(card)
+
+})
+
+}
+
+async function upload(){
+
+const title=document.getElementById("title").value.trim()
+const file=document.getElementById("file").files[0]
+
+if(!title || !file){
+alert("Add title and video")
+return
+}
+
+const allowed=["video/mp4","video/webm","video/ogg","video/x-matroska"]
+
+if(!allowed.includes(file.type)){
+alert("Only video files allowed")
+return
+}
+
+if(db.find(v=>v.title.toLowerCase()==title.toLowerCase())){
+alert("Same title already uploaded")
+return
+}
+
+const form=new FormData()
+
+form.append("reqtype","fileupload")
+form.append("fileToUpload",file)
+
+alert("Uploading...")
+
+try{
+
+const res=await fetch("https://corsproxy.io/?https://catbox.moe/user/api.php",{
+method:"POST",
+body:form
+})
+
+let url=(await res.text()).trim()
+
+if(!url.startsWith("https")){
+alert("Upload failed")
+return
+}
+
+db.push({
+title:title,
+url:url
+})
+
+localStorage.setItem("db",JSON.stringify(db))
+
+render()
+
+alert("Upload complete")
+
+}catch(e){
+
+alert("Upload error")
+
+}
+
+}
+
+function play(i){
+
+document.getElementById("home").style.display="none"
+document.getElementById("playerPage").style.display="block"
+
+const v=db[i]
+
+document.getElementById("player").src=v.url
+document.getElementById("ptitle").innerText=v.title
+
+}
+
+function home(){
+
+document.getElementById("playerPage").style.display="none"
+document.getElementById("home").style.display="grid"
+
+}
+
+document.getElementById("search").addEventListener("input",e=>{
+
+const q=e.target.value.toLowerCase()
+
+const cards=document.querySelectorAll(".card")
+
+cards.forEach(c=>{
+c.style.display=c.innerText.toLowerCase().includes(q)?"block":"none"
+})
+
+})
+
+render()
+
+</script>
+
+</body>
+</html>
