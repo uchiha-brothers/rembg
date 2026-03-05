@@ -237,10 +237,10 @@ async function upload(){
     const formData = new FormData()
     formData.append("file", file)
 
-    const res = await fetch("https://ar-hosting.pages.dev/upload", {
-      method: "POST",
-      body: formData
-    })
+    const res = await fetch("https://corsproxy.io/?https://ar-hosting.pages.dev/upload", {
+  method: "POST",
+  body: formData
+})
 
     const data = await res.json()
 
