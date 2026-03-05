@@ -33,8 +33,15 @@ header{
   align-items: center;
   flex-wrap:wrap;
 }
-header h2{margin:0;}
-.navbar{display:flex;gap:15px;align-items:center;flex-wrap:wrap;}
+header h2{
+  margin:0;
+}
+.navbar{
+  display:flex;
+  gap:15px;
+  align-items:center;
+  flex-wrap:wrap;
+}
 .navbar input[type="text"]{
   padding:6px 10px;
   border-radius:4px;
@@ -140,7 +147,7 @@ input[type="file"],input[type="text"]{
 <div id="loading">Uploading Video...</div>
 
 <script>
-let videos = JSON.parse(localStorage.getItem("videos") || "[]")
+let videos=[]
 const grid=document.getElementById("grid")
 const latest=document.getElementById("latest")
 const loading=document.getElementById("loading")
@@ -156,13 +163,18 @@ function showUploadForm(){
   uploadControls.style.display = uploadControls.style.display==="none"?"flex":"none"
 }
 
-function saveVideos(){
-  localStorage.setItem("videos", JSON.stringify(videos))
+async function load(){
+  try{
+    const res=await fetch("/api/videos")
+    videos = await res.json()
+    showLatest()
+    sortVideos()
+  }catch(e){console.error("Load failed:",e)}
 }
 
 function showLatest(){
   latest.innerHTML=""
-  videos.slice(-5).reverse().forEach(v=>{
+  videos.slice(0,5).forEach(v=>{
     const div=document.createElement("div")
     div.innerHTML=`<video src="${v.url}" muted></video><p>${v.title}</p>`
     div.onclick=()=>play(v)
@@ -175,7 +187,7 @@ function sortVideos(){
   const type=document.getElementById("sort").value
   if(type==="az") sorted.sort((a,b)=>a.title.localeCompare(b.title))
   if(type==="random") sorted.sort(()=>Math.random()-0.5)
-  if(type==="latest") sorted.sort((a,b)=>b.timestamp - a.timestamp)
+  if(type==="latest") sorted.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))
   grid.innerHTML=""
   sorted.forEach(v=>{
     const card=document.createElement("div")
@@ -204,63 +216,71 @@ function play(v){
   win.document.write(`<body style="margin:0;background:black"><video src="${v.url}" controls autoplay style="width:100%;height:100%"></video></body>`)
 }
 
-// --------- Catbox Upload Method ---------
 async function upload(){
-  const title=document.getElementById("title").value.trim()
-  const file=document.getElementById("video").files[0]
+  const title = document.getElementById("title").value.trim()
+  const file = document.getElementById("video").files[0]
 
   if(!title || !file){
-    alert("Add title and select a video")
+    alert("Missing title or file")
     return
   }
 
-  if(videos.find(v=>v.title.toLowerCase() === title.toLowerCase())){
-    alert("Title already exists")
-    return
-  }
-
-  loading.style.display="flex"
+  loading.style.display = "flex"
+  let url = "" // Will be set after upload
 
   try{
     const formData = new FormData()
-    formData.append("reqtype","fileupload")
-    formData.append("fileToUpload", file)
+    formData.append("file", file) // CdnFile expects key "file"
 
-    // Use corsproxy to avoid CORS issues
-    const res = await fetch("https://corsproxy.io/?https://catbox.moe/user/api.php", {
-      method:"POST",
+    const res = await fetch("https://cdnfile.pages.dev/upload", {
+      method: "POST",
       body: formData
     })
 
-    const url = (await res.text()).trim()
+    const data = await res.json()
 
-    if(!url.startsWith("https")){
-      alert("Upload failed")
-      loading.style.display="none"
+    if(data.error){
+      alert("Upload failed: " + data.error)
+      console.error("Upload error:", data)
+      loading.style.display = "none"
       return
     }
 
-    // Add to local storage
-    videos.push({title:url, url:url, timestamp:Date.now()})
-    saveVideos()
-    sortVideos()
-    showLatest()
-    alert("Upload complete!")
+    if(!data.url){
+      alert("Upload failed: No URL returned")
+      console.error("Upload failed: invalid response", data)
+      loading.style.display = "none"
+      return
+    }
+
+    url = data.url // Set uploaded file URL
 
   }catch(e){
-    console.error("Upload error:",e)
-    alert("Upload failed!")
+    console.error("Upload failed:", e)
+    alert("Upload failed: " + e.message)
+    loading.style.display = "none"
+    return
+  }
+
+  try{
+    const res = await fetch("/api/videos", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({title, url})
+    })
+    const data = await res.json()
+    if(data.error) alert("Supabase error: "+data.error)
+  }catch(e){
+    console.error("Supabase save failed:", e)
   }
 
   loading.style.display="none"
   document.getElementById("title").value=""
   document.getElementById("video").value=""
+  load()
 }
-// -----------------------------------------
 
-// Initial render
-sortVideos()
-showLatest()
+load()
 </script>
 </body>
 </html>
