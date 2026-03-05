@@ -1,9 +1,8 @@
 {
-  "name": "vercel-rembg-cheerio",
-  "version": "1.0.0",
-  "type": "module",
+  "name": "animestream",
   "dependencies": {
-    "cheerio": "^1.0.0-rc.12",
+    "@supabase/supabase-js": "^2.39.0",
+    "formidable": "^3.5.0",
     "node-fetch": "^3.3.2"
   }
 }
