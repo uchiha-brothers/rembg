@@ -19,9 +19,6 @@ margin:0;
 header{
 background:#111;
 padding:15px;
-display:flex;
-justify-content:space-between;
-align-items:center;
 }
 
 .controls{
@@ -36,33 +33,18 @@ padding:10px;
 background:#1a1a1a;
 border:1px solid #333;
 color:white;
-border-radius:4px;
-}
-
-button{
-cursor:pointer;
-}
-
-.section{
-padding:20px;
 }
 
 .grid{
 display:grid;
 grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
 gap:15px;
+padding:20px;
 }
 
 .card{
 background:#151515;
-border-radius:6px;
-overflow:hidden;
 cursor:pointer;
-transition:0.2s;
-}
-
-.card:hover{
-transform:scale(1.05);
 }
 
 .card video{
@@ -74,33 +56,19 @@ object-fit:cover;
 .card p{
 padding:10px;
 margin:0;
-font-size:14px;
 }
 
 .latest{
 display:flex;
 gap:10px;
 overflow-x:auto;
+padding:20px;
 }
 
-.latest-card{
-min-width:200px;
-background:#151515;
-border-radius:6px;
-cursor:pointer;
-overflow:hidden;
-}
-
-.latest-card video{
-width:100%;
+.latest video{
+width:200px;
 height:120px;
 object-fit:cover;
-}
-
-.latest-card p{
-padding:8px;
-margin:0;
-font-size:13px;
 }
 
 #loading{
@@ -109,13 +77,11 @@ top:0;
 left:0;
 width:100%;
 height:100%;
-background:rgba(0,0,0,0.85);
-display:flex;
+background:black;
+display:none;
 align-items:center;
 justify-content:center;
 font-size:24px;
-z-index:100;
-display:none;
 }
 
 </style>
@@ -143,21 +109,13 @@ display:none;
 
 </div>
 
-<div class="section">
-
-<h3>Latest Uploads</h3>
+<h3 style="padding-left:20px">Latest Uploads</h3>
 
 <div class="latest" id="latest"></div>
 
-</div>
-
-<div class="section">
-
-<h3>All Videos</h3>
+<h3 style="padding-left:20px">All Videos</h3>
 
 <div class="grid" id="grid"></div>
-
-</div>
 
 <div id="loading">Uploading Video...</div>
 
@@ -172,11 +130,9 @@ const loading=document.getElementById("loading")
 async function load(){
 
 const res=await fetch("/api/videos")
-
 videos=await res.json()
 
 showLatest()
-
 sortVideos()
 
 }
@@ -185,22 +141,18 @@ function showLatest(){
 
 latest.innerHTML=""
 
-const last5=[...videos].slice(0,5)
+videos.slice(0,5).forEach(v=>{
 
-last5.forEach(v=>{
+const div=document.createElement("div")
 
-const card=document.createElement("div")
-
-card.className="latest-card"
-
-card.innerHTML=`
+div.innerHTML=`
 <video src="${v.url}" muted></video>
 <p>${v.title}</p>
 `
 
-card.onclick=()=>play(v)
+div.onclick=()=>play(v)
 
-latest.appendChild(card)
+latest.appendChild(div)
 
 })
 
@@ -213,21 +165,11 @@ let sorted=[...videos]
 const type=document.getElementById("sort").value
 
 if(type==="az"){
-
 sorted.sort((a,b)=>a.title.localeCompare(b.title))
-
-}
-
-if(type==="latest"){
-
-sorted.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))
-
 }
 
 if(type==="random"){
-
 sorted.sort(()=>Math.random()-0.5)
-
 }
 
 grid.innerHTML=""
@@ -253,14 +195,13 @@ grid.appendChild(card)
 
 function play(v){
 
-const player=window.open()
+const win=window.open()
 
-player.document.write(`
-<html>
+win.document.write(`
 <body style="margin:0;background:black">
-<video src="${v.url}" controls autoplay style="width:100%;height:100%"></video>
+<video src="${v.url}" controls autoplay style="width:100%">
+</video>
 </body>
-</html>
 `)
 
 }
@@ -268,29 +209,39 @@ player.document.write(`
 async function upload(){
 
 const title=document.getElementById("title").value
-const video=document.getElementById("video").files[0]
+const file=document.getElementById("video").files[0]
 
-if(!title || !video){
-alert("Please select video and title")
+if(!title||!file){
+alert("Missing data")
 return
 }
 
 loading.style.display="flex"
 
-const form=new FormData()
+const formData=new FormData()
 
-form.append("title",title)
-form.append("video",video)
+formData.append("reqtype","fileupload")
+formData.append("fileToUpload",file)
+
+const upload=await fetch("https://catbox.moe/user/api.php",{
+method:"POST",
+body:formData
+})
+
+const url=(await upload.text()).trim()
 
 await fetch("/api/videos",{
 method:"POST",
-body:form
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+title:title,
+url:url
+})
 })
 
 loading.style.display="none"
-
-document.getElementById("title").value=""
-document.getElementById("video").value=""
 
 load()
 
