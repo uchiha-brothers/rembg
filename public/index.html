@@ -218,8 +218,9 @@ return
 
 loading.style.display="flex"
 
-const formData=new FormData()
+console.log("Uploading to Catbox...")
 
+const formData=new FormData()
 formData.append("reqtype","fileupload")
 formData.append("fileToUpload",file)
 
@@ -228,7 +229,13 @@ method:"POST",
 body:formData
 })
 
+console.log("Catbox response received")
+
 const url=(await upload.text()).trim()
+
+console.log("Video URL:",url)
+
+console.log("Saving to Supabase...")
 
 await fetch("/api/videos",{
 method:"POST",
@@ -241,9 +248,12 @@ url:url
 })
 })
 
+console.log("Saved!")
+
 loading.style.display="none"
 
 load()
+
 
 }
 
